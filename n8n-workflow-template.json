@@ -1,0 +1,77 @@
+{
+  "name": "Business Plan Playbook - Final Fix",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "business-plan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8bbef391-306c-4ca1-ad32-9428475055a0",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nlet promptText = body.promptTemplate || '';\n\n// Inject user inputs into the prompt\nif (body.inputs) {\n  for (const [key, value] of Object.entries(body.inputs)) {\n    promptText = promptText.replace(new RegExp(`{${key}}`, 'g'), value);\n  }\n}\n\nreturn {\n  promptText,\n  originalBody: body\n};"
+      },
+      "id": "70544ae0-fd07-46ec-aee8-8775c32ae119",
+      "name": "Prompt Router1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $json.promptText }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "01731267-0a56-4055-8050-0a57723b3a7b",
+      "name": "OpenAI1",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [690, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "G2cbThq9tVUWHir4",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"result\": {{ $json.choices[0].message.content || $json.output || $json.text || \"AI Error: No content returned\" }}\n}",
+        "options": {}
+      },
+      "id": "4ec2702b-80de-4832-ab98-d37a66748bb1",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Webhook1": {
+      "main": [[{ "node": "Prompt Router1", "type": "main", "index": 0 }]]
+    },
+    "Prompt Router1": {
+      "main": [[{ "node": "OpenAI1", "type": "main", "index": 0 }]]
+    },
+    "OpenAI1": {
+      "main": [[{ "node": "Respond to Webhook1", "type": "main", "index": 0 }]]
+    }
+  }
+}
